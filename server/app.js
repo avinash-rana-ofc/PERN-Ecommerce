@@ -1,6 +1,6 @@
 import express from "express";
 import { config } from "dotenv";
-import cors from "cors"
+import cors from "cors";
 import cookieParser from "cookie-parser";
 import fileUpload from "express-fileupload";
 const app = express();

@@ -1,4 +1,4 @@
-import database from '../database/db';
+import database from '../database/db.js';
 
 export async function createUserTable(){
     try {
@@ -12,7 +12,7 @@ export async function createUserTable(){
             avatar JSONB DEFAULT NULL,
             reset_password_token TEXT DEFAULT NULL,
             reset_password_expires TIMESTAMP DEFAULT NULL,
-            created_at TIMESTAMP CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         `;
         

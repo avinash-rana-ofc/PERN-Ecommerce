@@ -1,6 +1,6 @@
-import database from '../database/db';
+import database from '../database/db.js';
 
-export async function createProductTable(){
+export async function createProductsTable(){
     try {
         const query = `
             CREATE TABLE IF NOT EXISTS products (
@@ -13,7 +13,7 @@ export async function createProductTable(){
                 images JSONB DEFAULT '[]'::JSONB,
                 stock INT NOT NULL CHECK (stock >= 0),
                 created_by UUID NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,'
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
             );
         `;
