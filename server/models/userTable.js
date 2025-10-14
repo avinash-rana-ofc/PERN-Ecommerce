@@ -1,4 +1,4 @@
-import database from '../database/db.js';
+import {database} from '../database/db.js';
 
 export async function createUserTable(){
     try {
