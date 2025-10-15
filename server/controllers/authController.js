@@ -6,12 +6,17 @@ import { sendToken } from "../utils/jwtToken.js";
 import { generateResetPasswordToken } from "../utils/generateResetPasswordToken.js";
 import { generateEmailTemplate } from "../utils/generateForgotPasswordEmailTemplate.js";
 import { sendEmail } from "../utils/sendEmail.js";
+import crypto from "crypto";
 
 export const register = catchAsyncErrors(async (req, res, next) => {
   const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
     return next(new ErrorHandler("Please provide all required fields.", 400));
+  }
+
+  if(password.length < 8 || password.length > 16){
+    return next(new ErrorHandler("Password should be between 8 and 16 characters.", 400));
   }
 
   const isAlreadyRegistered = await database.query(
@@ -79,46 +84,97 @@ export const logout = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
-export const forgotPassword = catchAsyncErrors(async(req, res, next) => {
-    const {email} = req.body;
+export const forgotPassword = catchAsyncErrors(async (req, res, next) => {
+  const { email } = req.body;
 
-    const frontendUrl = process.env.FRONTEND_URL;
+  const frontendUrl = process.env.FRONTEND_URL;
 
-    let userResult = await database.query(`SELECT * FROM users WHERE email = $1`, [email]);
+  let userResult = await database.query(
+    `SELECT * FROM users WHERE email = $1`,
+    [email]
+  );
 
-    if(userResult.rows.length === 0){
-        return next(new ErrorHandler("User not found with email", 404));
-    }
+  if (userResult.rows.length === 0) {
+    return next(new ErrorHandler("User not found with email", 404));
+  }
 
-    const user = userResult.rows[0];
+  const user = userResult.rows[0];
 
-    console.log(user)
-    const {hashedToken, resetPasswordExpireTime, resetToken} = generateResetPasswordToken();
+  console.log(user);
+  const { hashedToken, resetPasswordExpireTime, resetToken } =
+    generateResetPasswordToken();
 
-    await database.query(`UPDATE users SET reset_password_token = $1, reset_password_expires = to_timestamp($2) WHERE email = $3`, [hashedToken, resetPasswordExpireTime/1000, email]);
+  await database.query(
+    `UPDATE users SET reset_password_token = $1, reset_password_expires = to_timestamp($2) WHERE email = $3`,
+    [hashedToken, resetPasswordExpireTime / 1000, email]
+  );
 
-    const resetPasswordUrl = `${frontendUrl}/password/reset/${resetToken}`;
-    console.log(resetPasswordUrl)
-    const message = generateEmailTemplate(resetPasswordUrl);
+  const resetPasswordUrl = `${frontendUrl}/password/reset/${resetToken}`;
+  console.log(resetPasswordUrl);
+  const message = generateEmailTemplate(resetPasswordUrl);
 
-    try {
-        await sendEmail({
-            email : user.email,
-            subject : "Ecommerce Password Recovery",
-            message
-        });
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: "Ecommerce Password Recovery",
+      message,
+    });
 
-        res.status(200).json({
-            success : true,
-            message : `Email sent to ${user.email} successfully.`
-        })
-    } catch (error) {
-        await database.query(`UPDATE users SET reset_password_token = NULL, reset_password_expires = NULL WHERE email = $1`, [email]);
+    res.status(200).json({
+      success: true,
+      message: `Email sent to ${user.email} successfully.`,
+    });
+  } catch (error) {
+    await database.query(
+      `UPDATE users SET reset_password_token = NULL, reset_password_expires = NULL WHERE email = $1`,
+      [email]
+    );
 
-        return next(new ErrorHandler("Email could not be sent", 500));
-    }
+    return next(new ErrorHandler("Email could not be sent", 500));
+  }
+});
 
+export const resetPassword = catchAsyncErrors(async (req, res, next) => {
+  const { token } = req.params;
 
+  const resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
 
+  const user = await database.query(
+    `SELECT * FROM users WHERE reset_password_token = $1 AND reset_password_expires > NOW()`,
+    [resetPasswordToken]
+  );
 
-})
+  if (user.rows.length === 0) {
+    return next(new ErrorHandler("Invalid or expired reset token", 400));
+  }
+
+  if (req.body.password !== req.body.confirmPassword) {
+    return next(new ErrorHandler("Passwords do not match!", 400));
+  }
+
+  if (
+    req.body.password?.length < 8 ||
+    req.body.password?.length > 16 ||
+    req.body.confirmPassword?.length < 8 ||
+    req.body.confirmPassword?.length > 16
+  ) {
+    return next(
+      new ErrorHandler("Password must be between 8 and 16 characters", 400)
+    );
+  }
+
+  const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
+  const updatedUser = await database.query(
+    `
+      UPDATE users SET password = $1, reset_password_token = NULL, reset_password_expires = NULL 
+      WHERE id = $2 RETURNING *;
+    `,
+    [hashedPassword, user.rows[0].id]
+  );
+
+  sendToken(updatedUser.rows[0], 200, "Password reset successfully", res);
+});
