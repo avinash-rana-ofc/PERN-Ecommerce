@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import fileUpload from "express-fileupload";
 import {errorMiddleware} from "./middlewares/errorMiddleware.js";
 import authRouter  from "./router/authRoute.js";
+import { createTables } from "./utils/createTables.js";
 const app = express();
 
 app.use(cors({
@@ -21,7 +22,10 @@ app.use(fileUpload({
     useTempFiles : true
 }))
 
-app.use("/api/v1/auth", authRouter)
-app.use(errorMiddleware)
+app.use("/api/v1/auth", authRouter);
+
+createTables();
+
+app.use(errorMiddleware);
 
 export default app;
