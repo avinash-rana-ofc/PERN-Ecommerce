@@ -15,8 +15,10 @@ export const register = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Please provide all required fields.", 400));
   }
 
-  if(password.length < 8 || password.length > 16){
-    return next(new ErrorHandler("Password should be between 8 and 16 characters.", 400));
+  if (password.length < 8 || password.length > 16) {
+    return next(
+      new ErrorHandler("Password should be between 8 and 16 characters.", 400)
+    );
   }
 
   const isAlreadyRegistered = await database.query(
@@ -177,4 +179,42 @@ export const resetPassword = catchAsyncErrors(async (req, res, next) => {
   );
 
   sendToken(updatedUser.rows[0], 200, "Password reset successfully", res);
+});
+
+export const updatePassword = catchAsyncErrors(async (req, res, next) => {
+  const { currentPassword, newPassword, confirmNewPassword } = req.body;
+  if (!currentPassword || !newPassword || !confirmNewPassword) {
+    return next(new ErrorHandler("Please provide all required fields.", 400));
+  }
+  console.log(req.user.password)
+  console.log(currentPassword)
+  const isPasswordMatch = await bcrypt.compare(currentPassword, req.user.password);
+
+  if (!isPasswordMatch) {
+    return next(new ErrorHandler("Current Password is incorrect", 401));
+  }
+  if (newPassword !== confirmNewPassword) {
+    return next(new ErrorHandler("Confirm Password does not match.", 401));
+  }
+  if (
+    newPassword.length < 8 ||
+    newPassword.length > 16 ||
+    confirmNewPassword.length < 8 ||
+    confirmNewPassword.length > 16
+  ) {
+    return next(
+      new ErrorHandler("Password must be between 8 and 16 characters", 400)
+    );
+  }
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  const updatePassword = await database.query(
+    `
+      UPDATE users SET password = $1 WHERE id = $2 RETURNING *;
+    `,
+    [hashedPassword, req.user.id]
+  );
+  res.status(200).json({
+    success: true,
+    message: "Password updated successfully.",
+  });
 });

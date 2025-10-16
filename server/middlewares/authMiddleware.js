@@ -13,7 +13,7 @@ export const isAuthenticated = catchAsyncErrors(async(req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
 
     const user = await database.query(`SELECT * FROM users WHERE id = $1 LIMIT 1`, [decoded.id]);
-
+    console.log(user.rows[0])
     req.user = user.rows[0];
 
     next();
