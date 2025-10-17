@@ -7,6 +7,7 @@ import { generateResetPasswordToken } from "../utils/generateResetPasswordToken.
 import { generateEmailTemplate } from "../utils/generateForgotPasswordEmailTemplate.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import crypto from "crypto";
+import { v2 as cloudinary } from "cloudinary";
 
 export const register = catchAsyncErrors(async (req, res, next) => {
   const { name, email, password } = req.body;
@@ -186,9 +187,11 @@ export const updatePassword = catchAsyncErrors(async (req, res, next) => {
   if (!currentPassword || !newPassword || !confirmNewPassword) {
     return next(new ErrorHandler("Please provide all required fields.", 400));
   }
-  console.log(req.user.password)
-  console.log(currentPassword)
-  const isPasswordMatch = await bcrypt.compare(currentPassword, req.user.password);
+
+  const isPasswordMatch = await bcrypt.compare(
+    currentPassword,
+    req.user.password
+  );
 
   if (!isPasswordMatch) {
     return next(new ErrorHandler("Current Password is incorrect", 401));
@@ -216,5 +219,53 @@ export const updatePassword = catchAsyncErrors(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Password updated successfully.",
+  });
+});
+
+export const updateProfile = catchAsyncErrors(async (req, res, next) => {
+  const { name, email } = req.body;
+  if (!name || !email) {
+    return next(new ErrorHandler("Please provide all required fields.", 400));
+  }
+  if (name.trim().length === 0 || email.trim().length === 0) {
+    return next(new ErrorHandler("Name and email cannot be empty.", 400));
+  }
+  let avatarData = {};
+  if (req.files && req.files.avatar) {
+    const { avatar } = req.files;
+    console.log(avatar.tempFilePath)
+    if (req.user?.avatar?.public_id) {
+      await cloudinary.uploader.destroy(req.user.avatar.public_id);
+    }
+  }
+  console.log(avatar.tempFilePath)
+  const newProfileImage = await cloudinary.uploader.upload(avatar.tempFilePath,
+    {
+      folder: "Ecommerce_Avatars",
+      width: 150,
+      crop: "scale",
+    }
+  );
+  avatarData = {
+    public_id: newProfileImage.public_id,
+    url: newProfileImage.secure_url,
+  };
+  let user;
+  if (Object.keys(avatarData).length === 0) {
+    user = await database.query(
+      `UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING *`,
+      [name, email, req.user.id]
+    );
+  } else {
+    user = await database.query(
+      `UPDATE users SET name = $1, email = $2, avatar = $3 WHERE id = $4 RETURNING *`,
+      [name, email, avatarData, req.user.id]
+    );
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Profile updated successfully",
+    user: user.rows[0],
   });
 });
