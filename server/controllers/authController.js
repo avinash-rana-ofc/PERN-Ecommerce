@@ -230,6 +230,8 @@ export const updateProfile = catchAsyncErrors(async (req, res, next) => {
   if (name.trim().length === 0 || email.trim().length === 0) {
     return next(new ErrorHandler("Name and email cannot be empty.", 400));
   }
+  console.log(name, email)
+  console.log(req.files)
   let avatarData = {};
   if (req.files && req.files.avatar) {
     const { avatar } = req.files;
@@ -237,19 +239,22 @@ export const updateProfile = catchAsyncErrors(async (req, res, next) => {
     if (req.user?.avatar?.public_id) {
       await cloudinary.uploader.destroy(req.user.avatar.public_id);
     }
+
+    console.log(avatar.tempFilePath)
+
+    const newProfileImage = await cloudinary.uploader.upload(avatar.tempFilePath,
+      {
+        folder: "Ecommerce_Avatars",
+        width: 150,
+        crop: "scale",
+      }
+    );
+    avatarData = {
+      public_id: newProfileImage.public_id,
+      url: newProfileImage.secure_url,
+    };
   }
-  console.log(avatar.tempFilePath)
-  const newProfileImage = await cloudinary.uploader.upload(avatar.tempFilePath,
-    {
-      folder: "Ecommerce_Avatars",
-      width: 150,
-      crop: "scale",
-    }
-  );
-  avatarData = {
-    public_id: newProfileImage.public_id,
-    url: newProfileImage.secure_url,
-  };
+
   let user;
   if (Object.keys(avatarData).length === 0) {
     user = await database.query(
