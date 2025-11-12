@@ -22,7 +22,7 @@ export const createProduct = catchAsyncErrors(async (req, res, next) => {
     for (const image of images) {
       const result = await cloudinary.uploader.upload(image.tempFilePath, {
         folder: "Ecommerce_Product_Images",
-        width: 100,
+        width: 1000,
         crop: "scale",
       });
 
@@ -33,10 +33,8 @@ export const createProduct = catchAsyncErrors(async (req, res, next) => {
     }
   }
 
-        console.log(price/88);
-
   const product = await database.query(
-    `INSERT INTO products (name, description, price, category, stock, images, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    `INSERT INTO products (name, description, price, category, stock, images, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
     [
       name,
       description,
@@ -50,7 +48,11 @@ export const createProduct = catchAsyncErrors(async (req, res, next) => {
 
   res.status(201).json({
     success: true,
-    message: "Product created.",
+    message: "Product created successfully.",
     product: product.rows[0],
   });
+});
+
+export const fetchAllProducts = catchAsyncErrors(async(req, res, next) => {
+  console.log(req.query)
 });
