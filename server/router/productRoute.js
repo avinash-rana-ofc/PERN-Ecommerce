@@ -5,6 +5,6 @@ import { authorizedRoles, isAuthenticated } from "../middlewares/authMiddleware.
 const router = express.Router();
 
 router.post('/admin/create', isAuthenticated, authorizedRoles('Admin'), createProduct);
-router.get('/admin/getAllProducts', isAuthenticated, authorizedRoles('Admin'), fetchAllProducts);
+router.get('/', isAuthenticated, authorizedRoles('Admin'), fetchAllProducts);
 
 export default router;
