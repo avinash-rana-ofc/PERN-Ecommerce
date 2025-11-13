@@ -52,11 +52,9 @@ export const createProduct = catchAsyncErrors(async (req, res, next) => {
     message: "Product created successfully.",
     product: product.rows[0],
   });
-
 });
 
 export const fetchAllProducts = catchAsyncErrors(async (req, res, next) => {
-  console.log(req.query);
   const { availability, price, category, ratings, search } = req.query;
   const page = parseInt(req.query.page) || 1;
   const limit = 10;
@@ -144,7 +142,6 @@ export const fetchAllProducts = catchAsyncErrors(async (req, res, next) => {
   `;
   const result = await database.query(query, values);
 
-
   //QUERY FOR FETCHING NEW PRODUCT (interval of 30 days)
   const newProductsQuery = `
     SELECT p.*, 
@@ -158,7 +155,6 @@ export const fetchAllProducts = catchAsyncErrors(async (req, res, next) => {
   `;
   const newProductsResult = await database.query(newProductsQuery);
 
-
   //QUERY FOR FETCHING TOP RATING PRODUCTS (rating >= 4.5)
   const topRatedQuery = `
     SELECT p.*, COUNT(r.id) AS review_count
@@ -171,7 +167,6 @@ export const fetchAllProducts = catchAsyncErrors(async (req, res, next) => {
   `;
   const topRatedResult = await database.query(topRatedQuery);
 
-
   res.status(200).json({
     success: true,
     products: result.rows[0],
@@ -179,5 +174,64 @@ export const fetchAllProducts = catchAsyncErrors(async (req, res, next) => {
     newProducts: newProductsResult.rows,
     topRatedProducts: topRatedResult.rows,
   });
+});
+
+export const updateProduct = catchAsyncErrors(async (req, res, next) => {
+  const { id } = req.params;
+  const { name, description, price, category, stock, images } = req.body;
+
+  console.log(req.user)
+  const conditions = [];
+  let values = [];
+  let index = 1;
+  let whereClause = ``;
+
+  if (name) {
+    conditions.push(` NAME = $${index}`);
+    values.push(name);
+    index++;
+  }
+  if (description) {
+    conditions.push(` DESCRIPTION = $${index}`);
+    values.push(description);
+    index++;
+  }
+  if (price) {
+    conditions.push(` PRICE = $${index}`);
+    values.push(price);
+    index++;
+  }
+  if (category) {
+    conditions.push(` CATEGORY = $${index}`);
+    values.push(category);
+    index++;
+  }
+  if(id){
+    whereClause = ` WHERE id = $${index} RETURNING *`;
+    values.push(id);
+  }
+  
+  
+  console.log(conditions.join(","));
+  // const query = `SELECT p.*
+  //   FROM users u 
+  //   LEFT JOIN products p 
+  //   ON u.id = p.created_by`;
+
+  const updateQuery = `UPDATE products SET 
+    ${conditions.join(",")} 
+    ${whereClause}
+  `;
+
+  console.log(updateQuery)
+  const updateProduct = await database.query(updateQuery, values);
+  const updateProductResult = updateProduct.rows[0];
+
+  res.status(201).json({
+    success : true,
+    product : updateProductResult
+  });
 
 });
+
+
