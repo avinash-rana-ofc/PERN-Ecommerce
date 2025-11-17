@@ -1,5 +1,8 @@
 node_modules
-# Logs
+config/config.env
+config.env
+
+# Logsgit status
 logs
 *.log
 npm-debug.log*
@@ -141,3 +144,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
+server/config/config.env
+.env
+.env.*
