@@ -575,13 +575,14 @@ export const fetchAIFilteredProducts = catchAsyncErrors(
 
       const filteredProducts = result.rows;
 
-      if(filterKeywords.length === 0){
+      if(filteredProducts.length === 0){
         return res.status(200).json({
           success : true,
           message : "No products found matching your prompt.",
           products : []
         });
       }
+    console.log(filteredProducts)
 
       //STEP 2: AI FILTERING
       const {success, products} = await getAIRecommendation(req, res, userPrompt, filteredProducts);
