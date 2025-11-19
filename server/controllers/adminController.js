@@ -1,7 +1,7 @@
 import { database } from "../database/db.js";
 import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddleware.js";
-import {v2 as cloudinary} from "cloudinary";
+import { v2 as cloudinary } from "cloudinary";
 
 export const getAllUsers = catchAsyncErrors(async (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
@@ -31,16 +31,17 @@ export const getAllUsers = catchAsyncErrors(async (req, res, next) => {
 export const deleteUser = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
 
-  const deleteUser = await database.query("DELETE FROM users WHERE id = $1 RETURNING *", [
-    id,
-  ]);
+  const deleteUser = await database.query(
+    "DELETE FROM users WHERE id = $1 RETURNING *",
+    [id]
+  );
 
   if (deleteUser.rows.length === 0) {
     return next(new ErrorHandler("User not found."), 404);
   }
 
   const avatar = deleteUser.rows[0].avatar;
-  if(avatar?.public_id){
+  if (avatar?.public_id) {
     await cloudinary.uploader.destroy(avatar.public_id);
   }
 
@@ -50,6 +51,89 @@ export const deleteUser = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-export const dashboardStats = catchAsyncErrors(async(req, res, next) => {
+export const dashboardStats = catchAsyncErrors(async (req, res, next) => {
+  const today = new Date();
+  const todayDate = today.toISOString().split("T")[0];
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const yesterdayDate = yesterday.toISOString().split("T")[0];
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth();
+  const currentMonthStart = new Date(Date.UTC(year, month, 1));
+  const currentMonthEnd = new Date(Date.UTC(year, month + 1, 0));
+  const previousMonthStart = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1)
+  );
+  const previousMonthEnd = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 0)
+  );
 
+  const totalRevenueAllTimeQuery = await database.query(`
+    SELECT SUM(total_price) FROM orders
+  `);
+
+  const totalRevenueAllTime =
+    parseFloat(totalRevenueAllTimeQuery.rows[0].sum) || 0;
+
+  const totalUsersCountQuery = await database.query(
+    `
+    SELECT COUNT(*) FROM users WHERE role = 'User'
+    `
+  );
+
+  const totalUsersCount = parseFloat(totalUsersCountQuery.rows[0].count) || 0;
+
+  const orderStatusCountQuery = await database.query(
+    `SELECT order_status, COUNT(*) FROM orders BY order_status`
+  );
+
+  const orderStatusCount = {
+    Processing: 0,
+    Shipped: 0,
+    Delivered: 0,
+    Cancelled: 0,
+  };
+
+  orderStatusCountQuery.rows.forEach((row) => {
+    orderStatusCount[row.order_status] = parseInt(row.count);
+  });
+
+  //Today's Revenue
+  const todayRevenueQuery = await database.query(
+    `
+    SELECT SUM(total_price) FROM orders WHERE created_at::date = $1
+    `,
+    [todayDate]
+  );
+
+  const todayRevenue = parseFloat(todayRevenueQuery.rows[0].sum) || 0;
+
+  const yesterdayRevenueQuery = await database.query(
+    `
+    SELECT SUM(total_price) FROM orders WHERE created_at::date = $1
+    `,
+    [yesterdayDate]
+  );
+
+  const yesterdayRevenue = parseFloat(yesterdayRevenueQuery.rows[0].sum) || 0;
+
+  //Monthly Sales For Line Chart
+  const monthlySalesQuery = await database.query(
+    `SELECT TO_CHAR(created_at, 'Mon YYYY') AS month,
+    DATE_TRUNC('month', created_at) AS date,
+    SUM(total_price) as totalSales 
+    FROM orders 
+    GROUP BY month, date 
+    ORDER BY date ASC`
+  );
+
+  const monthlySales = monthlySalesQuery.rows.map((row) => ({
+    month : row.month,
+    totalSales : parseFloat(row.totalSales) || 0
+  }));
+
+  //Top 5 most sold products
+  const topSellingProductsQuery = await database.query(
+    ``
+  )
 });
