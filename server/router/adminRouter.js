@@ -5,6 +5,6 @@ const router = express.Router();
 
 router.get("/getAllUsers", isAuthenticated, authorizedRoles("Admin"), getAllUsers);//DASHBOARD
 router.delete("/delete/:id", isAuthenticated, authorizedRoles("Admin"), deleteUser);
-router.get("/dashboard", isAuthenticated, authorizedRoles("Admin"), dashboardStats);
+router.get("/fetch/dashboard-stats", isAuthenticated, authorizedRoles("Admin"), dashboardStats);
 
 export default router;
